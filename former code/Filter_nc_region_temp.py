@@ -1,0 +1,130 @@
+import os
+from netCDF4 import Dataset
+from openpyxl import Workbook
+import shutil
+import geopandas as gpd
+from shapely.geometry import Point
+from datetime import datetime
+from tqdm import tqdm
+
+# 读取研究区域的shapefile
+shp_path = r'C:\Users\TJ002\Desktop\code\Cal_code_data\NWP_orbit_processing\Arctic_Canada_North.shp'
+region = gpd.read_file(shp_path)
+
+# 根文件夹路径
+root_folder = r'E:\CryoSat-2 L1\20220801-0830 river region\download_424c5e85-ff55-49ed-9788-048b40226695_direct_download_result'
+base_output_folder = r'E:\NWP_L1'
+
+# 设置年份范围
+start_year = 2014
+end_year = 2024
+
+# 检查根文件夹是否存在
+if not os.path.exists(root_folder):
+    print(f"根文件夹路径不存在: {root_folder}")
+    exit(1)
+
+# 创建基础输出文件夹
+if not os.path.exists(base_output_folder):
+    os.makedirs(base_output_folder)
+
+# 创建一个Excel工作簿用于记录处理的文件
+wb = Workbook()
+ws = wb.active
+ws.append(["年份", "NC文件路径", "是否在研究区域内", "数据点总数", "区域内点数", "文件时间"])
+
+# 首先统计需要处理的文件总数
+print("正在统计文件数量...")
+total_files = 0
+for root, dirs, files in os.walk(root_folder):
+    for file in files:
+        if file.lower().endswith(".nc"):
+            total_files += 1
+
+print(f"共找到 {total_files} 个NC文件")
+
+# 使用tqdm创建进度条
+processed_files = 0
+with tqdm(total=total_files, desc="处理进度") as pbar:
+    # 遍历根文件夹及其子文件夹中的所有文件
+    for root, dirs, files in os.walk(root_folder):
+        for file in files:
+            if file.lower().endswith(".nc"):
+                nc_file_path = os.path.join(root, file)
+                try:
+                    # 从文件名中提取年份
+                    date_parts = [part for part in file.split('_') if len(part) >= 8 and part[0:8].isdigit()]
+                    if date_parts:
+                        year = int(date_parts[0][0:4])  # 提取年份
+                    else:
+                        print(f"无法从文件名 {file} 中提取年份，跳过此文件")
+                        pbar.update(1)
+                        continue
+                    
+                    # 检查年份是否在指定范围内
+                    if year < start_year or year > end_year:
+                        pbar.update(1)
+                        continue
+                    
+                    print(f"\n处理NC文件: {nc_file_path}")
+                    
+                    year_folder = os.path.join(base_output_folder, str(year))
+                    if not os.path.exists(year_folder):
+                        os.makedirs(year_folder)
+
+                    nc_data = Dataset(nc_file_path, "r")
+                    
+                    # 检查必要的变量是否存在
+                    required_vars = ['lon_plrm_01_ku', 'lat_plrm_01_ku']
+                    if not all(var in nc_data.variables for var in required_vars):
+                        print(f"文件 {nc_file_path} 缺少必要的变量")
+                        nc_data.close()
+                        pbar.update(1)
+                        continue
+
+                    # 获取经纬度数据
+                    lons = nc_data.variables['lon_plrm_01_ku'][:]
+                    lats = nc_data.variables['lat_plrm_01_ku'][:]
+            
+
+                    # 获取文件的时间信息
+                    sensing_start = nc_data.sensing_start if hasattr(nc_data, 'sensing_start') else 'Unknown'
+
+                    # 检查是否有点落在研究区域内
+                    total_points = len(lons)
+                    points_in_region = 0
+                    data_within_range = False
+                    
+                    for lon, lat in zip(lons, lats):
+                        point = Point(lon, lat)
+                        if any(region.contains(point)):
+                            points_in_region += 1
+                            data_within_range = True
+
+                    if data_within_range:
+                        print(f"文件 {file} 在研究区域内，包含 {points_in_region}/{total_points} 个点")
+                        target_path = os.path.join(year_folder, file)
+                        if not os.path.exists(target_path):
+                            shutil.copy2(nc_file_path, target_path)
+                            print(f"已复制文件到 {target_path}")
+                        ws.append([year, nc_file_path, "是", total_points, points_in_region, sensing_start])
+                    else:
+                        print(f"文件 {file} 不在研究区域内")
+                        ws.append([year, nc_file_path, "否", total_points, 0, sensing_start])
+
+                    nc_data.close()
+
+                except Exception as e:
+                    print(f"处理文件 {nc_file_path} 时出错：{str(e)}")
+                    ws.append(["未知", nc_file_path, f"处理出错: {str(e)}", 0, 0, "Unknown"])
+                
+                finally:
+                    pbar.update(1)
+
+# 保存Excel文件
+excel_file_path = os.path.join(base_output_folder, "CS2_processing_record.xlsx")
+try:
+    wb.save(excel_file_path)
+    print(f"\n已保存处理记录到: {excel_file_path}")
+except Exception as e:
+    print(f"\n保存Excel文件失败: {e}")

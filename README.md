@@ -10,10 +10,10 @@ An automated data pipeline for sea ice thickness retrieval
 This repository contains an end-to-end automated data pipeline for sea ice thickness retrieval, developed as part of the National Key R&D Program of China. It integrates multi-source satellite data, specifically combining Sentinel-1 (S1) SAR imagery with CryoSat-2 (CS2) radar altimetry waveforms. [cite_start]The pipeline handles large-scale data matching [cite: 47][cite_start], cloud-based feature extraction via Google Earth Engine (GEE) [cite: 49][cite_start], and machine learning classification to accurately differentiate sea ice leads and floes[cite: 55, 60].
 
 ## ✨ Key Features
-* [cite_start]**Automated Data Matching & Extraction:** Batch downloads Sentinel-1 SAFE metadata and processes spatial-temporal overlaps with CryoSat-2 NetCDF files.
-* [cite_start]**Cloud-Native Preprocessing:** Utilizes the Google Earth Engine API to export S1 imagery to Google Drive [cite: 49, 50][cite_start], calculating specific bands and masking by sea ice concentration (SIC > 70%)[cite: 3, 52].
-* [cite_start]**Machine Learning Classification:** Implements Random Forest (RF) classification for Sentinel-1 imagery [cite: 55, 56] [cite_start]and classifies CryoSat-2 L1 waveform points[cite: 60, 61].
-* [cite_start]**Robust Labeling Workflow:** Integrates ArcGIS Pro for spatial labeling [cite: 14, 15][cite_start], utilizing Python (`datetime.datetime.strptime`) to format time profiles properly for GEE compatibility[cite: 24, 33].
+* **Automated Data Matching & Extraction:** Batch downloads Sentinel-1 SAFE metadata and processes spatial-temporal overlaps with CryoSat-2 NetCDF files.
+* **Cloud-Native Preprocessing:** Utilizes the Google Earth Engine API to export S1 imagery to Google Drive, calculating specific bands and masking by sea ice concentration (SIC > 70%).
+* **Machine Learning Classification:** Implements Random Forest (RF) classification for Sentinel-1 imagery and classifies CryoSat-2 L1 waveform points.
+* **Robust Labeling Workflow:** Integrates ArcGIS Pro for spatial labeling, utilizing Python (`datetime.datetime.strptime`) to format time profiles properly for GEE compatibility.
 
 ## 📂 Repository Structure
 ```text
